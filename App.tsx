@@ -1,108 +1,158 @@
-import React, { useState, useCallback, useMemo } from 'react';
+
+import React, { useState, useCallback } from 'react';
 import { Header } from './components/Header';
+import { ServiceSelector } from './components/ServiceSelector';
 import { InputSection } from './components/InputSection';
-import { ResultsSection } from './components/ResultsSection';
-import { Footer } from './components/Footer';
-import type { Account, Result } from './types';
-import { ResultStatus } from './types';
-import { getCode } from './services/apiService';
+import { ResultsTable } from './components/ResultsTable';
+import { Toast } from './components/Toast';
+import { SERVICES } from './constants';
+import type { Service, InputData, ResultData, ApiResult, ResultStatus } from './types';
+
+const API_URL = 'https://tools.dongvanfb.net/api/get_code_oauth2';
 
 const App: React.FC = () => {
-    const [results, setResults] = useState<Result[]>([]);
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [selectedService, setSelectedService] = useState<Service | null>(null);
+    const [inputText, setInputText] = useState<string>('');
+    const [results, setResults] = useState<ResultData[]>([]);
+    const [isProcessing, setIsProcessing] = useState<boolean>(false);
+    const [toastMessage, setToastMessage] = useState<string>('');
 
-    const updateResult = (id: string, updates: Partial<Result>) => {
-        setResults(prevResults =>
-            prevResults.map(r => (r.id === id ? { ...r, ...updates } : r))
-        );
+    const showToast = (message: string) => {
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(''), 3000);
     };
 
-    const processSingleAccount = useCallback(async (account: Account, id: string) => {
-        try {
-            const apiResponse = await getCode({
-                email: account.email,
-                refresh_token: account.refresh_token,
-                client_id: account.client_id,
-                type: account.type,
-            });
+    const parseInput = useCallback((text: string): InputData[] => {
+        return text
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.includes('|'))
+            .map((line): InputData | null => {
+                const parts = line.split('|');
+                if (parts.length < 4) return null;
+                return {
+                    email: parts[0].trim(),
+                    password: parts[1].trim(),
+                    refreshToken: parts[2].trim(),
+                    clientId: parts[3].trim(),
+                    raw: line,
+                };
+            })
+            .filter((item): item is InputData => item !== null);
+    }, []);
 
-            if (apiResponse.status) {
-                updateResult(id, {
-                    status: ResultStatus.Success,
-                    code: apiResponse.code,
-                    content: apiResponse.content,
-                    date: apiResponse.date,
-                });
-            } else {
-                updateResult(id, {
-                    status: ResultStatus.Error,
-                    content: apiResponse.content || 'Failed to retrieve code.',
-                });
-            }
-        } catch (error) {
-            console.error('API Error for', account.email, error);
-            updateResult(id, {
-                status: ResultStatus.Error,
-                content: error instanceof Error ? error.message : 'បាន​កើត​ឡើង​នូវ​កំហុស​មិន​ស្គាល់​មួយ។',
+    const getCode = useCallback(async (item: InputData, type: string): Promise<ApiResult> => {
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: item.email,
+                    refresh_token: item.refreshToken,
+                    client_id: item.clientId,
+                    type: type,
+                }),
             });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: `HTTP error! Status: ${response.status}` }));
+                return { status: false, code: 'Error', content: errorData.message };
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('API Call Error:', error);
+            return { status: false, code: 'Error', content: 'Network error or CORS issue.' };
         }
     }, []);
 
-    const handleProcess = useCallback(async (accounts: Account[]) => {
+    const handleSubmit = useCallback(async () => {
+        if (!selectedService) {
+            showToast('សូមជ្រើសរើសប្រភេទផ្លេតហ្វមជាមុនសិន។');
+            return;
+        }
+        const dataToProcess = parseInput(inputText);
+        if (dataToProcess.length === 0) {
+            setResults([]);
+            showToast('រកមិនឃើញទិន្នន័យត្រឹមត្រូវទេ។ សូមពិនិត្យមើលការបញ្ចូលរបស់អ្នក។');
+            return;
+        }
+
         setIsProcessing(true);
-        const initialResults: Result[] = accounts.map((acc, index) => ({
-            ...acc,
-            id: `${acc.email}-${index}`,
-            status: ResultStatus.Pending,
-            code: '',
-            content: '',
-            date: '',
-        }));
+        const initialResults: ResultData[] = dataToProcess.map(item => ({ ...item, status: 'loading' }));
         setResults(initialResults);
 
-        await Promise.allSettled(
-            initialResults.map(result => processSingleAccount(result, result.id))
-        );
+        const promises = initialResults.map(item => getCode(item, selectedService.name));
+        const apiResults = await Promise.all(promises);
 
+        const finalResults = initialResults.map((item, index) => {
+            const res = apiResults[index];
+            const newStatus: ResultStatus = res.status ? 'success' : 'error';
+            return {
+                ...item,
+                status: newStatus,
+                code: res.code,
+                content: res.content,
+            };
+        });
+
+        setResults(finalResults);
         setIsProcessing(false);
-    }, [processSingleAccount]);
+    }, [selectedService, inputText, parseInput, getCode]);
 
-    const handleRetry = useCallback(async (resultId: string) => {
-        const resultToRetry = results.find(r => r.id === resultId);
-        if (resultToRetry) {
-            updateResult(resultId, { status: ResultStatus.Pending, code: '', content: '', date: '' });
-            await processSingleAccount(resultToRetry, resultToRetry.id);
+    const handleRetry = useCallback(async (itemToRetry: InputData) => {
+        if (!selectedService) {
+            showToast('សូមជ្រើសរើសប្រភេទផ្លេតហ្វមជាមុនសិន។');
+            return;
         }
-    }, [results, processSingleAccount]);
 
-    const summary = useMemo(() => {
-        return results.reduce(
-            (acc, result) => {
-                acc[result.status]++;
-                return acc;
-            },
-            {
-                [ResultStatus.Success]: 0,
-                [ResultStatus.Pending]: 0,
-                [ResultStatus.Error]: 0,
-            }
-        );
-    }, [results]);
+        setResults(prev => prev.map(r => r.email === itemToRetry.email ? { ...r, status: 'retrying' } : r));
+
+        const result = await getCode(itemToRetry, selectedService.name);
+        const newStatus: ResultStatus = result.status ? 'success' : 'error';
+
+        setResults(prev => prev.map(r =>
+            r.email === itemToRetry.email
+                ? {
+                    ...r,
+                    status: newStatus,
+                    code: result.code,
+                    content: result.content
+                }
+                : r
+        ));
+    }, [selectedService, getCode]);
+    
+    const handleCopy = (message: string) => {
+        showToast(message);
+    };
 
     return (
-        <div className="min-h-screen flex flex-col font-sans">
-            <Header />
-            <main className="flex-grow container mx-auto px-4 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <InputSection onProcess={handleProcess} isProcessing={isProcessing} />
-                    <ResultsSection
-                        results={results}
-                        summary={summary}
-                        onRetry={handleRetry}
+        <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
+            <div className="w-full max-w-7xl mx-auto">
+                <Header />
+                <main className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl shadow-gray-900 p-4 sm:p-8">
+                    <ServiceSelector
+                        services={SERVICES}
+                        selectedService={selectedService}
+                        onSelect={setSelectedService}
                     />
-                </div>
-            </main>
-            <Footer />
+                    <InputSection
+                        inputText={inputText}
+                        onInputChange={(e) => setInputText(e.target.value)}
+                        onSubmit={handleSubmit}
+                        isProcessing={isProcessing}
+                        isServiceSelected={!!selectedService}
+                    />
+                    <ResultsTable
+                        results={results}
+                        onRetry={handleRetry}
+                        onCopy={handleCopy}
+                    />
+                </main>
+                <footer className="text-center mt-8 text-gray-500 text-sm">
+                    <p>ផ្ទាំងគ្រប់គ្រងទំនើបដោយ Dongvanfb.net</p>
+                </footer>
+            </div>
+            <Toast message={toastMessage} />
         </div>
     );
 };

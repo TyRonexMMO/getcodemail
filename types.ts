@@ -1,54 +1,27 @@
-
-export enum ServiceType {
-    Facebook = 'facebook',
-    Instagram = 'instagram',
-    Twitter = 'twitter',
-    Apple = 'apple',
-    TikTok = 'tiktok',
-    Amazon = 'amazon',
-    Lazada = 'lazada',
-    KakaoTalk = 'kakaotalk',
-    Google = 'google',
-    Shopee = 'shopee',
-    Telegram = 'telegram',
-    WeChat = 'wechat',
-    All = 'all',
+export interface Service {
+    name: string;
+    color: string; // Tailwind classes for selected state (bg, text)
+    icon: string; // Font Awesome class name
 }
 
-export interface Account {
+export interface InputData {
     email: string;
     password?: string;
-    refresh_token: string;
-    client_id: string;
-    type: ServiceType;
+    refreshToken: string;
+    clientId: string;
+    raw: string;
 }
 
-export enum ResultStatus {
-    Pending = 'pending',
-    Success = 'success',
-    Error = 'error',
-}
+export type ResultStatus = 'idle' | 'loading' | 'success' | 'error' | 'retrying';
 
-export interface Result extends Account {
-    id: string;
+export interface ResultData extends InputData {
     status: ResultStatus;
-    code: string;
-    content: string;
-    date: string;
+    code?: string;
+    content?: string;
 }
 
-export interface ApiRequest {
-    email: string;
-    refresh_token: string;
-    client_id: string;
-    type: ServiceType;
-}
-
-export interface ApiResponse {
-    email: string;
-    password?: string;
+export interface ApiResult {
     status: boolean;
-    code: string;
-    content: string;
-    date: string;
+    code?: string;
+    content?: string;
 }

@@ -1,5 +1,5 @@
 {
-  "name": "Copy of Email Code Dashboard",
-  "description": "An application to process account data and retrieve verification codes from emails via an API. It provides a clean interface to input data, view results in real-time, and manage account processing.",
+  "name": "Copy of OAuth2 Code Retriever",
+  "description": "An application to retrieve email codes using OAuth2 tokens. Users can paste their data, select a platform, and instantly get their codes. Built with React and Tailwind CSS for a modern, responsive interface.",
   "requestFramePermissions": []
 }
