@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Email Code Dashboard",
+  "description": "An application to process account data and retrieve verification codes from emails via an API. It provides a clean interface to input data, view results in real-time, and manage account processing.",
+  "requestFramePermissions": []
+}
