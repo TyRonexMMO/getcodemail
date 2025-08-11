@@ -149,7 +149,7 @@ const App: React.FC = () => {
                     />
                 </main>
                 <footer className="text-center mt-8 text-gray-500 text-sm">
-                    <p>ផ្ទាំងគ្រប់គ្រងទំនើបដោយ Dongvanfb.net</p>
+                    <p>រៀបរៀង និងចងក្រងដោយ៖ TYRonex @២០២៥</p>
                 </footer>
             </div>
             <Toast message={toastMessage} />
