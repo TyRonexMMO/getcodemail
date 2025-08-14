@@ -1,14 +1,16 @@
 
 import React from 'react';
-import type { ResultData, InputData } from '../types';
+import { EyeIcon } from './icons';
+import type { ResultData, InputData, Message } from '../types';
 
 interface ResultRowProps {
     result: ResultData;
-    onRetry: (item: InputData) => void;
+    onRetry: (item: ResultData) => void;
     onCopy: (message: string) => void;
+    onViewMessages: (messages: Message[], email: string) => void;
 }
 
-const ResultRow: React.FC<ResultRowProps> = ({ result, onRetry, onCopy }) => {
+const ResultRow: React.FC<ResultRowProps> = ({ result, onRetry, onCopy, onViewMessages }) => {
 
     const handleCopyCode = () => {
         if (result.code) {
@@ -22,7 +24,10 @@ const ResultRow: React.FC<ResultRowProps> = ({ result, onRetry, onCopy }) => {
         onCopy('បានចម្លងអ៊ីមែលរួចរាល់!');
     };
     
-    const { status, email, code, content } = result;
+    const { status, email, code, content, messages } = result;
+    const isSuccess = status === 'success';
+    const isMessagesResult = isSuccess && messages && messages.length > 0;
+    const isCodeResult = isSuccess && code;
 
     const renderStatus = () => {
         switch (status) {
@@ -43,19 +48,30 @@ const ResultRow: React.FC<ResultRowProps> = ({ result, onRetry, onCopy }) => {
         }
     };
 
-    const renderCode = () => {
-        if (status === 'success' && code) {
+    const renderResult = () => {
+        if (isMessagesResult) {
+            return <span className="font-semibold">{messages.length} សារ</span>
+        }
+        if (isCodeResult) {
             return <code className="bg-gray-700 text-yellow-300 font-mono p-1 rounded">{code}</code>;
         }
         if (status === 'error') {
-             return <span className="text-gray-500">{code || 'គ្មាន'}</span>
+             return <span className="text-red-400">{code || 'Error'}</span>
         }
         return <span className="text-gray-500">-</span>;
     };
     
-    const renderContent = () => {
-        if(status === 'success' || status === 'error') {
-            return <span className="text-gray-400 truncate" title={content || ''}>{content || 'មិនបានទទួលមាតិកាទេ។'}</span>;
+    const renderDetails = () => {
+        if(isMessagesResult) {
+            const firstMessage = [...messages].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+            const detailText = `ពី៖ ${firstMessage.from[0]?.name || 'N/A'} | ប្រធានបទ៖ ${firstMessage.subject || 'N/A'}`;
+            return <span className="text-gray-400 truncate" title={detailText}>{detailText}</span>;
+        }
+        if (isCodeResult && content) {
+            return <span className="text-gray-400 truncate" title={content}>{content}</span>;
+        }
+        if (status === 'error' && content) {
+             return <span className="text-gray-400 truncate" title={content}>{content}</span>;
         }
         return <span className="text-gray-500">-</span>;
     }
@@ -63,14 +79,19 @@ const ResultRow: React.FC<ResultRowProps> = ({ result, onRetry, onCopy }) => {
     const renderActions = () => {
         return (
             <div className="flex items-center justify-center space-x-2">
-                {status === 'success' && code && (
+                {isMessagesResult && (
+                     <button onClick={() => onViewMessages(messages, email)} className="p-2 rounded-md bg-green-600 hover:bg-green-500 transition" title="មើលសារ">
+                        <EyeIcon />
+                    </button>
+                )}
+                {isCodeResult && (
                     <button onClick={handleCopyCode} className="p-2 rounded-md bg-gray-600 hover:bg-gray-500 transition" title="ចម្លងលេខកូដ">
-                        <i className="fas fa-copy w-4 h-4 text-white"></i>
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                     </button>
                 )}
                  {(status === 'error' || status === 'success') && (
                     <button onClick={() => onRetry(result)} className="p-2 rounded-md bg-blue-600 hover:bg-blue-500 transition" title="ព្យាយាមម្តងទៀត">
-                         <i className="fas fa-sync-alt w-4 h-4 text-white"></i>
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 4a12 12 0 0116 16M20 20a12 12 0 01-16-16"></path></svg>
                     </button>
                 )}
                  {(status === 'loading' || status === 'retrying') && <span className="text-gray-500">-</span>}
@@ -79,7 +100,7 @@ const ResultRow: React.FC<ResultRowProps> = ({ result, onRetry, onCopy }) => {
     }
 
     return (
-        <tr className="bg-gray-800 border-b border-gray-700">
+        <tr className="bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
             <td 
                 onClick={handleCopyEmail} 
                 className="px-6 py-4 font-medium text-white whitespace-nowrap cursor-pointer hover:text-blue-400 transition-colors"
@@ -88,8 +109,8 @@ const ResultRow: React.FC<ResultRowProps> = ({ result, onRetry, onCopy }) => {
                 {email}
             </td>
             <td className="px-6 py-4">{renderStatus()}</td>
-            <td className="px-6 py-4">{renderCode()}</td>
-            <td className="px-6 py-4">{renderContent()}</td>
+            <td className="px-6 py-4">{renderResult()}</td>
+            <td className="px-6 py-4 max-w-xs truncate">{renderDetails()}</td>
             <td className="px-6 py-4 text-center">{renderActions()}</td>
         </tr>
     );
@@ -98,14 +119,15 @@ const ResultRow: React.FC<ResultRowProps> = ({ result, onRetry, onCopy }) => {
 
 interface ResultsTableProps {
     results: ResultData[];
-    onRetry: (item: InputData) => void;
+    onRetry: (item: ResultData) => void;
     onCopy: (message: string) => void;
+    onViewMessages: (messages: Message[], email: string) => void;
 }
 
-export const ResultsTable: React.FC<ResultsTableProps> = ({ results, onRetry, onCopy }) => {
+export const ResultsTable: React.FC<ResultsTableProps> = ({ results, onRetry, onCopy, onViewMessages }) => {
     return (
         <div>
-            <h2 className="text-lg font-semibold text-white mb-4">៣. លទ្ធផល</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">៤. លទ្ធផល</h2>
             <div className="bg-gray-900 bg-opacity-50 border border-gray-700 rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-max text-sm text-left text-gray-300">
@@ -113,15 +135,15 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results, onRetry, on
                             <tr>
                                 <th scope="col" className="px-6 py-3">អ៊ីមែល</th>
                                 <th scope="col" className="px-6 py-3">ស្ថានភាព</th>
-                                <th scope="col" className="px-6 py-3">លេខកូដ</th>
-                                <th scope="col" className="px-6 py-3">មាតិកា</th>
+                                <th scope="col" className="px-6 py-3">លទ្ធផល</th>
+                                <th scope="col" className="px-6 py-3">ព័ត៌មានលម្អិត</th>
                                 <th scope="col" className="px-6 py-3 text-center">សកម្មភាព</th>
                             </tr>
                         </thead>
                         <tbody>
                             {results.length > 0 ? (
                                 results.map((result) => (
-                                    <ResultRow key={result.email} result={result} onRetry={onRetry} onCopy={onCopy} />
+                                    <ResultRow key={result.email} result={result} onRetry={onRetry} onCopy={onCopy} onViewMessages={onViewMessages} />
                                 ))
                             ) : (
                                 <tr>

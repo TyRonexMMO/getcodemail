@@ -1,4 +1,5 @@
 import React from 'react';
+import type { ActionType } from '../types';
 
 interface InputSectionProps {
     inputText: string;
@@ -6,12 +7,13 @@ interface InputSectionProps {
     onSubmit: () => void;
     isProcessing: boolean;
     isServiceSelected: boolean;
+    actionType: ActionType;
 }
 
-export const InputSection: React.FC<InputSectionProps> = ({ inputText, onInputChange, onSubmit, isProcessing, isServiceSelected }) => {
+export const InputSection: React.FC<InputSectionProps> = ({ inputText, onInputChange, onSubmit, isProcessing, isServiceSelected, actionType }) => {
     return (
         <div className="mb-8">
-            <h2 className="text-lg font-semibold text-white mb-4">២. បិទភ្ជាប់ទិន្នន័យរបស់អ្នក</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">៣. បិទភ្ជាប់ទិន្នន័យរបស់អ្នក</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2">
                     <textarea
@@ -29,7 +31,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ inputText, onInputCh
                             <li>បិទភ្ជាប់ទិន្នន័យក្នុងទម្រង់៖<br /><code className="text-xs bg-gray-800 p-1 rounded">Email|Pass|refresh_token|client_id</code></li>
                             <li>ធាតុនីមួយៗត្រូវតែនៅលើបន្ទាត់ថ្មី។</li>
                             <li>ប្រអប់អត្ថបទនឹងមិនរុំអក្សរទេ។</li>
-                            <li>ជ្រើសរើសប្រភេទសេវាកម្មមុនពេលបញ្ជូន។</li>
+                            <li>ជ្រើសរើសសកម្មភាព និងសេវាកម្មមុនពេលបញ្ជូន។</li>
                         </ul>
                     </div>
                     <button
@@ -37,7 +39,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ inputText, onInputCh
                         disabled={isProcessing || !isServiceSelected}
                         className="w-full mt-4 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed disabled:scale-100"
                     >
-                        {isProcessing ? 'ដំណើរការ...' : 'ទទួលយកលេខកូដ'}
+                        {isProcessing ? 'ដំណើរការ...' : (actionType === 'getCode' ? 'ទទួលយកលេខកូដ' : 'ទទួលយកសារ')}
                     </button>
                 </div>
             </div>
